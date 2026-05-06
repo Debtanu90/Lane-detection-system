@@ -7,47 +7,51 @@ from src.roi import apply_roi
 from src.hough import hough_lines
 from src.lane_detection import process_frame
 
-class TestLaneDetection(unittest.TestCase):
+test_image_dir = "test/test_data/images/road_line_images"
 
-    def setUp(self):
-        # Create a dummy test image (black image with white lines)
-        self.test_image = np.zeros((480, 640, 3), dtype=np.uint8)
-        cv2.line(self.test_image, (200, 480), (300, 300), (255, 255, 255), 5)
-        cv2.line(self.test_image, (440, 480), (340, 300), (255, 255, 255), 5)
+class aneDetectionRealData(unittest.TestCase):
+    
+    def test_real_images(self):
+        for file in os.listdir(test_image_dir):
+            if file.endswith((".jpg", ".png")):
+                path = os.path.join(test_image_dir, file)
 
-    # -----------------------------
-    # Test preprocessing step
-    # -----------------------------
-    def test_process(self):
-        edges = preprocess(self.test_image)
-        self.assertIsNotNone(edges)
-        self.assertEqual(len(edges.shape), 2)
+                image = cv2.imread(path)
+                self.assertIsNotNone(image, f"failed to load {file}")
 
-    # -----------------------------
-    # Test ROI masking
-    # -----------------------------
-    def test_roi(self):
-        edges = preprocess(self.test_image)
-        roi = apply_roi(edges)
-        self.assertIsNotNone(roi)
+                output = process_frame(image)
 
-    # -----------------------------
-    # Test Hough line detection
-    # -----------------------------
-    def test_hough_lines(self):
-        edges = preprocess(self.test_image)
-        roi = apply_roi(edges)
-        lines = hough_lines(roi)
-        self.assertIsNotNone(lines)
+                # Basic checks
+                self.assertIsNotNone(output)
+                self.assertEqual(output.shape, image.shape)
 
-    # -----------------------------
-    # Test full pipeline
-    # -----------------------------
-    def test_process_frame(self):
-        output = process_frame(self.test_image)
-        self.assertIsNotNone(output)
-        self.assertEqual(output.shape, self.test_image.shape)
+    def test_lane_detection(self):
+        for file in os.listdir(test_image_dir):
+            if file.endswith((".jpg", ".png")):
+                path = os.path.join(test_image_dir, file)
 
+                image = cv2.imread(path)
+                edges = preprocess(image)
+                roi = apply_roi(edges)
+                lines = hough_lines(roi)
+
+                # At least some lines should be detected
+                self.assertIsNotNone(lines, f"No lanes detected in {file}")
+
+    def test_edge_density(self):
+        for file in os.listdir(test_image_dir):
+            if file.endswith((".jpg", ".png")):
+                path = os.path.join(test_image_dir, file)
+
+                image = cv2.imread(path)
+                edges = preprocess(image)
+                edge_pixels = np.sum(edges > 0)
+                total_pixels = edges.size
+
+                edge_ratio = edge_pixels / total_pixels
+
+                # Expect at least some edges (>0.5%)
+                self.assertGreater(edge_ratio, 0.005, f"Too few edges in {file}")
 if __name__ == "__main__":
     unittest.main()
 
